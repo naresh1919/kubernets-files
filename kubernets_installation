@@ -1,0 +1,61 @@
+#Run the following commands in the same order in all the nodes to install docker, kubelet, kubeadm, and kubectl.
+
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl 
+
+# Add the Docker Repository
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - 
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable" 
+
+# Add the Kubernetes repository
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add - 
+cat << EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list 
+deb https://apt.kubernetes.io/ kubernetes-xenial main 
+EOF 
+
+# Install Docker, Kubeadm, Kubelet, and Kubectl 
+sudo apt-get update 
+sudo apt-get install -y docker-ce kubelet kubeadm kubectl 
+
+# Enable net.bridge.bridge-nf-call-iptables
+echo "net.bridge.bridge-nf-call-iptables=1" | sudo tee -a /etc/sysctl.conf 
+sudo sysctl -p 
+
+
+#Installation on master node
+
+# Initialize the cluster and configure kubectl
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# Install the flannel networking plugin
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/bc79dd1505b0c8681ece4de4c0d86c5cd2643275/Documentation/kube-flannel.yml
+
+#command will create a pod with busybox container running. 
+
+ kubectl create -f https://k8s.io/examples/admin/dns/busybox.yaml
+
+#command will test the DNS working properly by nslookup an internal pod name.
+
+kubectl exec -ti busybox -- nslookup kubernetes.default
+
+
+# download dashboard in GUI
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
+
+# to run dashboard any where
+
+sudo kubectl proxy --address=0.0.0.0 --accept-hosts '.*'
+
+
+http://52.66.135.163:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/login
+
+
+
+kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=172.31.25.225
+
+
+
+
+kubectl create clusterrolebinding dashboard-admin -n default --clusterrole=cluster-admin --serviceaccount=default:dashboard
